@@ -2,9 +2,6 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cambridge Interactive Book</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="data/library.js"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;height:100vh;overflow:hidden;font-family:system-ui,Segoe UI,Tahoma,sans-serif;background:radial-gradient(circle at 50% 30%,#12507a,#07243a 70%);color:#fff}
@@ -20,8 +17,8 @@ h2{font:700 32px Georgia,serif;color:#ffe9a3;margin:0 0 22px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,190px));gap:18px;justify-content:center;max-width:900px;padding:0 16px}
 .card{padding:26px 10px;border-radius:14px;text-align:center;background:linear-gradient(135deg,#0f8fb0,#0b5f87);border:2px solid #e8c46a;cursor:pointer;box-shadow:0 8px 24px #0006;transition:.2s}
 .card:hover{transform:translateY(-5px) scale(1.04)}.card b{display:block;font-size:34px}
-#login input{display:block;margin:8px 0;padding:10px;width:260px;border-radius:8px;border:0;font-size:16px}
 button{font-family:inherit}
+#gear{position:fixed;top:12px;right:14px;z-index:6;display:none;width:44px;height:44px;border:0;border-radius:50%;background:#ffffff26;color:#fff;font-size:22px;cursor:pointer}
 #reader{justify-content:flex-start}
 #bar{width:100%;height:50px;display:flex;gap:8px;align-items:center;padding:0 10px;background:#000000aa;flex:none}
 #bar button,#bar select{font:600 15px inherit;font-family:inherit;padding:7px 13px;border:0;border-radius:9px;background:#e8c46a;color:#07243a;cursor:pointer}
@@ -43,38 +40,63 @@ button{font-family:inherit}
 .audio{width:6.5%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);border:calc(var(--u)*.45) solid #e8c46a;background:#e8c46a33;animation:rg 1.8s infinite}
 .audio.play{background:#e8c46acc;animation:none}@keyframes rg{50%{box-shadow:0 0 0 calc(var(--u)*1) #e8c46a55}}
 .video{border:calc(var(--u)*.4) solid #e8c46a;border-radius:calc(var(--u)*1);background:#e8c46a33;animation:rg 1.8s infinite}
-#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000d;padding:10px 18px;border-radius:10px;display:none;z-index:20}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000d;padding:10px 18px;border-radius:10px;display:none;z-index:30;max-width:90vw}
 #modal{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;z-index:15}
 #modal video{max-width:92vw;max-height:86vh}#modal span{position:absolute;top:14px;right:22px;font-size:36px;cursor:pointer}
+/* manager */
+#mgr{background:#eef3f7;color:#12263a;font-size:14px;justify-content:flex-start;align-items:stretch}
+#mh{background:#0b3a5c;color:#fff;padding:8px 14px;display:flex;gap:10px;align-items:center;flex:none}#mh .sp{flex:1}#mh b{font-size:17px}
+#mgr button{background:#0f8fb0;color:#fff;border:0;border-radius:7px;padding:6px 10px;cursor:pointer}#mgr button.g{background:#6b7f8f}#mgr button.r{background:#c93a3a}
+#mgr input,#mgr select,#mgr textarea{width:100%;font:inherit;padding:6px 8px;margin:3px 0;border:1px solid #b8c7d3;border-radius:7px;color:#12263a}
+#mmain{flex:1;min-height:0;display:none;grid-template-columns:250px 1fr 290px;gap:10px;padding:10px}
+#mmain>*{background:#fff;border-radius:10px;padding:10px;overflow:auto}#mgr h3{margin:10px 0 4px;color:#0b5f87}
+#cfg{max-width:480px;margin:30px auto;background:#fff;border-radius:12px;padding:18px}
+#mpv{position:relative;display:inline-block;touch-action:none;cursor:crosshair;max-width:100%}#mpi{display:block;max-height:calc(100vh - 120px);max-width:100%;user-select:none;-webkit-user-drag:none}
+.mk{position:absolute;border:2px solid #1a73e8;font-size:11px;color:#1a73e8;background:#1a73e833;pointer-events:none}.mk.p{width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border-color:#e5173f;background:#e5173f66}
+#mdr{position:absolute;border:2px dashed #e5173f;background:#e5173f22;pointer-events:none}
+.it{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #e3eaf0}.it span{cursor:pointer;flex:1}
+#mpl button{margin:2px;padding:4px 8px}small{color:#5b7083}
 </style></head><body>
 <div id="cover" class="screen on"><div class="bookcover"><h1>Cambridge</h1><p>ENGLISH · INTERACTIVE BOOK</p></div><div class="hint">اضغطي لفتح الكتاب ✨</div></div>
-<div id="login" class="screen"><h2>Login</h2><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button id="lgo" class="card" style="padding:10px 30px;color:#fff">Login</button></div>
 <div id="shelf" class="screen"><h2>Books</h2><div class="grid" id="bgrid"></div></div>
 <div id="units" class="screen"><h2 id="bt"></h2><div class="grid" id="ugrid"></div><button class="card" style="margin-top:22px;padding:10px 24px;color:#fff" onclick="shelf()">◀ Books</button></div>
 <div id="reader" class="screen"><div id="bar"></div><div id="wrap"><div id="st"></div></div>
 <button class="nv" id="pv" onclick="go(-1)">‹</button><button class="nv" id="nx" onclick="go(1)">›</button></div>
-<div id="toast"></div><div id="modal"><span onclick="closeVid()">×</span><video id="vp" controls></video></div>
+<button id="gear" title="Manager">⚙</button>
+
+<div id="mgr" class="screen">
+ <div id="mh"><b>⚙ Manager</b><span id="ms"></span><span class="sp"></span><button class="g" id="mset">Settings</button><button class="g" id="mx">✕ Close</button></div>
+ <div id="cfg"><h3>GitHub connection</h3>
+  <small>Owner (your GitHub username)</small><input id="co"><small>Repository name</small><input id="cr"><small>Branch</small><input id="cb" value="main">
+  <small>Access token (starts with github_pat_) — saved only on this device</small><input id="ct" type="password">
+  <button id="csv">Save and continue</button></div>
+ <div id="mmain">
+  <div>
+   <h3>Books</h3><select id="mbk"></select><input id="nbt" placeholder="New book title"><button id="nba">＋ Add book</button> <button class="r" id="dbk">Delete book</button>
+   <h3>Units</h3><select id="mun"></select><input id="nun" placeholder="Unit number"><input id="nut" placeholder="Unit title"><button id="nua">＋ Add unit</button> <button class="r" id="dun">Delete unit</button>
+   <h3>Pages</h3><input type="file" id="mpf" multiple accept="image/*"><small>Name files like p94.jpg: the number is the page label and order.</small><div id="mpl"></div><button class="r" id="dpg">Delete this page</button>
+  </div>
+  <div><div id="mpv"><img id="mpi" alt="Pick a page"><div id="mov"></div><div id="mdr"></div></div></div>
+  <div>
+   <h3>New button</h3>
+   <select id="mkd"><option value="circle">Circle: drag around the correct option</option><option value="blank">Eye on a blank: click the blank</option><option value="note">Eye with a longer answer: click where the eye goes</option><option value="audio">Audio: click the headphone icon</option><option value="video">Video: drag a rectangle</option></select>
+   <textarea id="man" rows="4" placeholder="Answer text (simple HTML like &lt;br&gt; is OK). For a video you can paste a YouTube link here instead of a file."></textarea>
+   <input type="file" id="mmf" accept="audio/*,video/*"><small>Audio / video file (max ~90 MB)</small>
+   <button id="msv">Save button</button> <small id="mdm"></small>
+   <h3>Buttons on this page</h3><small>Click a button's text to edit its answer.</small><div id="mhl"></div>
+  </div>
+ </div>
+</div>
+<div id="toast"></div>
+<div id="modal"><span onclick="closeVid()">×</span><video id="vp" controls></video><iframe id="yf" allowfullscreen style="display:none;width:84vw;height:80vh;border:0"></iframe></div>
 <script>
-const $=s=>document.querySelector(s);let LIB,sb,U,pi=0,z=1,curBtn=null,curBook=null;const au=new Audio(),ZS=[1,1.5,2.2];
-const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(id).classList.add('on')};
-const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000)};
-$('#cover').onclick=async()=>{$('#cover').classList.add('open');try{LIB=await loadLib()}catch(e){toast('Error: '+(e.message||e));return}setTimeout(shelf,1400)};
-function login(){return new Promise(res=>{show('#login');$('#lgo').onclick=async()=>{const r=await sb.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});r.error?toast(r.error.message):res()}})}
-async function loadLib(){
- if(!CFG.url)return window.LIB;
- sb=supabase.createClient(CFG.url,CFG.key);
- let{data:{session}}=await sb.auth.getSession();
- while(!session){await login();({data:{session}}=await sb.auth.getSession())}
- const q=t=>sb.from(t).select('*').then(r=>{if(r.error)throw r.error;return r.data});
- const[b,u,p,h]=await Promise.all(['books','units','pages','hotspots'].map(q));
- const o=(a,k)=>a.sort((x,y)=>(x[k]??0)-(y[k]??0));
- return{books:o(b,'sort').map(bk=>({title:bk.title,units:o(u.filter(x=>x.book_id==bk.id),'num').map(un=>({num:un.num,title:un.title,pages:o(p.filter(x=>x.unit_id==un.id),'sort').map(pg=>({label:pg.label,path:pg.path,hs:h.filter(x=>x.page_id==pg.id).map(x=>({k:x.kind,x:x.x,y:x.y,w:x.w,h:x.h,a:x.answer,mp:x.path}))}))}))}))}}
-async function sign(u){if(!sb)return;const ps=[...new Set([...u.pages.map(p=>p.path),...u.pages.flatMap(p=>p.hs.map(h=>h.mp))].filter(Boolean))];
- const{data}=await sb.storage.from('media').createSignedUrls(ps,7200);const m={};data.forEach(d=>m[d.path]=d.signedUrl);
- u.pages.forEach(p=>{p.url=m[p.path];p.hs.forEach(h=>h.m=m[h.mp])})}
-function shelf(){const g=$('#bgrid');g.innerHTML='';LIB.books.forEach(b=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>📘</b>${b.title}`;d.onclick=()=>units(b);g.appendChild(d)});show('#shelf')}
-function units(b){curBook=b;$('#bt').textContent=b.title;const g=$('#ugrid');g.innerHTML='';b.units.forEach(u=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>${u.num}</b>${u.title}`;d.onclick=()=>openUnit(u);g.appendChild(d)});show('#units')}
-async function openUnit(u){try{await sign(u)}catch(e){toast(e.message);return}U=u;pi=0;z=1;show('#reader');
+const $=s=>document.querySelector(s);let LIB,U,pi=0,z=1,curBtn=null;const au=new Audio(),ZS=[1,1.5,2.2];
+const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(id).classList.add('on');$('#gear').style.display=(id=='#shelf'||id=='#units')?'block':'none'};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',5000)};
+$('#cover').onclick=async()=>{$('#cover').classList.add('open');try{const r=await fetch('data/library.json?t='+Date.now());if(!r.ok)throw 0;LIB=await r.json()}catch(e){$('#cover').classList.remove('open');toast('مش قادر أحمّل الكتاب. افتحيه من رابط GitHub Pages (مش من الملف على الجهاز).');return}setTimeout(shelf,1400)};
+function shelf(){const g=$('#bgrid');g.innerHTML='';LIB.books.forEach((b,i)=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>📘</b>${b.title}`;d.onclick=()=>units(b);g.appendChild(d)});show('#shelf')}
+function units(b){$('#bt').textContent=b.title;const g=$('#ugrid');g.innerHTML='';b.units.forEach(u=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>${u.num}</b>${u.title}`;d.onclick=()=>openUnit(u);g.appendChild(d)});show('#units')}
+function openUnit(u){if(!u.pages.length){toast('الوحدة دي لسه ما فيهاش صفحات');return}U=u;pi=0;z=1;show('#reader');
  $('#bar').innerHTML=`<button class="g" id="bb">☰</button><b>Unit ${u.num}: ${u.title}</b><select id="sel">${u.pages.map((p,i)=>`<option value="${i}">Page ${p.label}</option>`).join('')}</select><span class="sp"></span>
  <button id="bAu" class="g" style="display:none">⏸ Pause</button><button id="bA">👁 Reveal All</button><button id="bN" class="g">Hide All</button><button id="bZ" class="g">🔍</button><button id="bF" class="g">⛶</button>`;
  $('#bb').onclick=()=>{stopAu();show('#units')};$('#sel').onchange=e=>{pi=+e.target.value;draw()};
@@ -83,7 +105,8 @@ async function openUnit(u){try{await sign(u)}catch(e){toast(e.message);return}U=
  $('#bF').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
  $('#bAu').onclick=()=>{au.paused?au.play():au.pause()};draw()}
 function go(d){const n=Math.max(0,Math.min(U.pages.length-1,pi+d));if(n!=pi){pi=n;draw()}}
-function draw(){stopAu();const p=U.pages[pi],st=$('#st');st.innerHTML=`<img src="${p.url}" alt="">`;p.hs.forEach(h=>st.appendChild(mk(h)));$('#sel').value=pi;fit()}
+const src=p=>PREV[p.url]||p.url;
+function draw(){stopAu();const p=U.pages[pi],st=$('#st');st.innerHTML=`<img src="${src(p)}" alt="">`;p.hs.forEach(h=>st.appendChild(mk(h)));$('#sel').value=pi;fit()}
 function fit(){const w=$('#wrap'),H=Math.min(w.clientHeight,w.clientWidth/.8)*z,st=$('#st');st.style.height=H+'px';st.style.width=H*.8+'px';st.style.setProperty('--u',H/100+'px')}
 function mk(h){const b=document.createElement('button');b.className='h '+h.k;b.style.left=h.x+'%';b.style.top=h.y+'%';b.dataset.a=h.a||'';b.dataset.k=h.k;
  if(h.k=='circle'||h.k=='video'){b.style.width=h.w+'%';b.style.height=h.h+'%'}
@@ -98,10 +121,66 @@ function setAll(on){document.querySelectorAll('#st .h').forEach(b=>{if(b.dataset
 function upd(){document.querySelectorAll('.audio').forEach(b=>b.classList.toggle('play',b===curBtn&&!au.paused));const t=$('#bAu');if(!t)return;t.style.display=curBtn?'':'none';t.textContent=au.paused?'▶ Resume':'⏸ Pause'}
 au.onplay=au.onpause=upd;au.onended=()=>{curBtn=null;upd()};
 function stopAu(){au.pause();curBtn=null;upd()}
-function play(src,b){if(curBtn===b){au.paused?au.play():au.pause();return}au.pause();curBtn=b;au.src=src;au.play().catch(()=>{toast('ملف الصوت مش موجود: '+src);curBtn=null;upd()})}
-function vid(s){const v=$('#vp');v.src=s;$('#modal').style.display='flex';v.play().catch(()=>toast('الفيديو مش موجود'))}
-function closeVid(){const v=$('#vp');v.pause();v.removeAttribute('src');$('#modal').style.display='none'}
+function play(s,b){if(curBtn===b){au.paused?au.play():au.pause();return}au.pause();curBtn=b;au.src=PREV[s]||s;au.play().catch(()=>{toast('ملف الصوت مش موجود: '+s);curBtn=null;upd()})}
+function vid(s){const v=$('#vp'),f=$('#yf');$('#modal').style.display='flex';
+ if(/youtu/.test(s)){const id=(s.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/)||[])[1];v.style.display='none';f.style.display='block';f.src='https://www.youtube.com/embed/'+id+'?autoplay=1'}
+ else{f.style.display='none';v.style.display='block';v.src=s;v.play().catch(()=>toast('الفيديو مش موجود: '+s))}}
+function closeVid(){const v=$('#vp');v.pause();v.removeAttribute('src');$('#yf').src='';$('#modal').style.display='none'}
 addEventListener('keydown',e=>{if(!U||!$('#reader').classList.contains('on'))return;if(e.key=='ArrowRight'||e.key=='PageDown')go(1);if(e.key=='ArrowLeft'||e.key=='PageUp')go(-1);if(e.key==' '&&curBtn){e.preventDefault();au.paused?au.play():au.pause()}});
-addEventListener('resize',()=>U&&fit());
+addEventListener('resize',()=>U&&$('#reader').classList.contains('on')&&fit());
 let tx=0;$('#wrap').addEventListener('touchstart',e=>tx=e.touches[0].clientX);$('#wrap').addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-tx;if(z==1&&Math.abs(d)>80)go(d<0?1:-1)});
+
+/* ================= Manager: everything saved to GitHub ================= */
+const LS=localStorage,PREV={};let bi=0,ui=0,pg=0,D=null,s0=null,mfrom='#shelf';
+const G={o:LS.gh_o||location.hostname.split('.')[0],r:LS.gh_r||location.pathname.split('/')[1]||'',b:LS.gh_b||'main',t:LS.gh_t||''};
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'book';
+const safe=n=>n.replace(/[^\w.\-]+/g,'_');
+const fb=f=>new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(f)});
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+async function put(path,content,msg){const u=`https://api.github.com/repos/${G.o}/${G.r}/contents/${path.split('/').map(encodeURIComponent).join('/')}`,H={Authorization:'Bearer '+G.t,Accept:'application/vnd.github+json'};
+ let sha;const g=await fetch(u+'?ref='+G.b,{headers:H});if(g.ok)sha=(await g.json()).sha;else if(g.status!=404)throw new Error(g.status==401?'Token غلط أو منتهي':g.status==403?'Token مش معاه صلاحية Contents: Read and write':'GitHub error '+g.status);
+ const r=await fetch(u,{method:'PUT',headers:H,body:JSON.stringify({message:msg,content,branch:G.b,sha})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.message||('GitHub error '+r.status))}}
+const status=m=>$('#ms').textContent=m;
+async function saveLib(){status('⏳ Saving…');try{await put('data/library.json',b64(JSON.stringify(LIB,null,1)),'Update library');status('✓ Saved to GitHub. It appears on the site in 1–2 minutes.')}catch(e){status('❌ '+e.message);alert('Save failed: '+e.message)}}
+$('#gear').onclick=()=>{mfrom=document.querySelector('.screen.on').id?'#'+document.querySelector('.screen.on').id:'#shelf';mopen()};
+$('#mx').onclick=()=>show(mfrom);$('#mset').onclick=()=>{$('#cfg').style.display='block';$('#mmain').style.display='none'};
+function mopen(){show('#mgr');$('#co').value=G.o;$('#cr').value=G.r;$('#cb').value=G.b;$('#ct').value=G.t;const ok=!!G.t;$('#cfg').style.display=ok?'none':'block';$('#mmain').style.display=ok?'grid':'none';status('');ok&&mrender()}
+$('#csv').onclick=()=>{G.o=$('#co').value.trim();G.r=$('#cr').value.trim();G.b=$('#cb').value.trim()||'main';G.t=$('#ct').value.trim();LS.gh_o=G.o;LS.gh_r=G.r;LS.gh_b=G.b;LS.gh_t=G.t;mopen()};
+const BK=()=>LIB.books[bi],UN=()=>BK()&&BK().units[ui],PG=()=>UN()&&UN().pages[pg];
+function mrender(){const b=BK(),u=UN(),p=PG();
+ $('#mbk').innerHTML=LIB.books.map((x,i)=>`<option value="${i}">${x.title}</option>`).join('');$('#mbk').value=bi;
+ $('#mun').innerHTML=(b?b.units:[]).map((x,i)=>`<option value="${i}">Unit ${x.num}: ${x.title}</option>`).join('');$('#mun').value=ui;
+ $('#mpl').innerHTML=(u?u.pages:[]).map((x,i)=>`<button class="${i==pg?'':'g'}" onclick="mpick(${i})">${x.label}</button>`).join('');
+ $('#mpi').src=p?src(p):'';mhot()}
+function mpick(i){pg=i;mrender()}
+function mhot(){const p=PG(),hs=p?p.hs:[];
+ $('#mov').innerHTML=hs.map(h=>h.w>0?`<div class="mk" style="left:${h.x}%;top:${h.y}%;width:${h.w}%;height:${h.h}%">${h.k}</div>`:`<div class="mk p" style="left:${h.x}%;top:${h.y}%" title="${h.k}"></div>`).join('');
+ $('#mhl').innerHTML=hs.map((h,i)=>`<div class="it"><span onclick="editH(${i})">${h.k}: ${(h.a||h.m||'').replace(/<[^>]+>/g,' ').slice(0,30)}</span><button class="r" onclick="delH(${i})">✕</button></div>`).join('')||'<small>None yet</small>'}
+async function editH(i){const h=PG().hs[i];const v=prompt('Edit answer (HTML allowed):',h.a||'');if(v!==null){h.a=v;mhot();await saveLib()}}
+async function delH(i){PG().hs.splice(i,1);mhot();await saveLib()}
+$('#mbk').onchange=e=>{bi=+e.target.value;ui=0;pg=0;mrender()};$('#mun').onchange=e=>{ui=+e.target.value;pg=0;mrender()};
+$('#nba').onclick=async()=>{const t=$('#nbt').value.trim();if(!t)return;LIB.books.push({title:t,units:[]});bi=LIB.books.length-1;ui=0;pg=0;$('#nbt').value='';mrender();await saveLib()};
+$('#nua').onclick=async()=>{const n=+$('#nun').value,t=$('#nut').value.trim();if(!BK()||!n||!t)return alert('Add a book first, then fill unit number and title');const b=BK();b.units.push({num:n,title:t,pages:[]});b.units.sort((x,y)=>x.num-y.num);ui=b.units.findIndex(x=>x.num==n);pg=0;$('#nun').value=$('#nut').value='';mrender();await saveLib()};
+$('#dun').onclick=async()=>{if(UN()&&confirm('Delete this unit from the book?')){BK().units.splice(ui,1);ui=0;pg=0;mrender();await saveLib()}};
+$('#dbk').onclick=async()=>{if(BK()&&confirm('Delete this whole book?')){LIB.books.splice(bi,1);bi=ui=pg=0;mrender();await saveLib()}};
+$('#dpg').onclick=async()=>{if(PG()&&confirm('Delete page '+PG().label+'?')){UN().pages.splice(pg,1);pg=0;mrender();await saveLib()}};
+$('#mpf').onchange=async e=>{const u=UN();if(!u)return alert('Add a unit first');
+ for(const f of e.target.files){const lab=f.name.replace(/\D/g,'')||f.name.replace(/\.\w+$/,''),ext=f.name.split('.').pop().toLowerCase(),path=`books/${slug(BK().title)}/u${u.num}/p${lab}.${ext}`;
+  status('⏳ Uploading '+f.name+'…');const d=await fb(f);PREV[path]=d;
+  try{await put(path,d.split(',')[1],'Add page '+lab)}catch(er){status('❌ '+er.message);return alert(er.message)}
+  const ex=u.pages.find(p=>p.label==lab);ex?ex.url=path:u.pages.push({label:lab,url:path,hs:[]})}
+ u.pages.sort((a,b)=>(+a.label||999)-(+b.label||999));e.target.value='';pg=0;mrender();await saveLib()};
+const pc=e=>{const r=$('#mpi').getBoundingClientRect();return[Math.min(100,Math.max(0,(e.clientX-r.left)/r.width*100)),Math.min(100,Math.max(0,(e.clientY-r.top)/r.height*100))]};
+const box=(x,y,w,h)=>$('#mdr').style.cssText=`left:${x}%;top:${y}%;width:${w}%;height:${h}%`;
+$('#mpv').onpointerdown=e=>{if(!PG())return;s0=pc(e);$('#mpv').setPointerCapture(e.pointerId)};
+$('#mpv').onpointermove=e=>{if(!s0)return;const c=pc(e);box(Math.min(s0[0],c[0]),Math.min(s0[1],c[1]),Math.abs(c[0]-s0[0]),Math.abs(c[1]-s0[1]))};
+$('#mpv').onpointerup=e=>{if(!s0)return;const c=pc(e);D={x:Math.min(s0[0],c[0]),y:Math.min(s0[1],c[1]),w:Math.abs(c[0]-s0[0]),h:Math.abs(c[1]-s0[1])};s0=null;
+ if(D.w<1&&D.h<1){D.w=D.h=0;box(D.x-.5,D.y-.5,1,1)}else box(D.x,D.y,D.w,D.h);$('#mdm').textContent='Position set ✓'};
+$('#msv').onclick=async()=>{if(!PG()||!D)return alert('Pick a page, then click or drag on it first');const k=$('#mkd').value;let{x,y,w,h}=D;
+ if(k=='blank'||k=='note'||k=='audio'){x+=w/2;y+=h/2;w=h=0}else if(w<1||h<1)return alert('Drag a rectangle for this kind');
+ let m=null,a=$('#man').value||null;const f=$('#mmf').files[0];
+ if(k=='audio'||k=='video'){if(f){m=(k=='audio'?'audio/':'video/')+safe(f.name);status('⏳ Uploading '+f.name+'…');const d=await fb(f);PREV[m]=d;try{await put(m,d.split(',')[1],'Add '+k+' '+f.name)}catch(er){status('❌ '+er.message);return alert(er.message)}}
+  else if(k=='video'&&/youtu/.test(a||'')){m=a.trim();a=null}else return alert('Choose an audio/video file'+(k=='video'?' or paste a YouTube link':''))}
+ PG().hs.push({k,x:+x.toFixed(2),y:+y.toFixed(2),w:+w.toFixed(2),h:+h.toFixed(2),a,m});
+ D=null;box(0,0,0,0);$('#mdm').textContent='';$('#man').value='';$('#mmf').value='';mhot();await saveLib()};
 </script></body></html>
