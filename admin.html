@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manager Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font:14px system-ui,Segoe UI,Tahoma,sans-serif;background:#eef3f7;color:#12263a}
+header{background:#0b3a5c;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}header b{flex:1;font-size:18px}
+#app{display:none;grid-template-columns:260px 1fr 300px;gap:12px;padding:12px;height:calc(100vh - 50px)}
+aside,section,main{background:#fff;border-radius:10px;padding:12px;overflow:auto}
+h3{margin:12px 0 6px;color:#0b5f87}input,select,textarea,button{font:inherit;padding:6px 8px;margin:3px 0;width:100%;border:1px solid #b8c7d3;border-radius:7px}
+button{background:#0f8fb0;color:#fff;border:0;cursor:pointer;width:auto}button.r{background:#c93a3a}button.g{background:#6b7f8f}
+#pv{position:relative;display:inline-block;touch-action:none;cursor:crosshair;max-width:100%}#pi{display:block;max-height:calc(100vh - 110px);max-width:100%;user-select:none;-webkit-user-drag:none}
+.m{position:absolute;border:2px solid #1a73e8;font-size:11px;color:#1a73e8;background:#1a73e833;pointer-events:none}.m.p{width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border-color:#e5173f;background:#e5173f55}
+#dr{position:absolute;border:2px dashed #e5173f;background:#e5173f22;pointer-events:none}
+.it{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;border-bottom:1px solid #e3eaf0}.it.on{background:#ffe9a3}
+#pl button{margin:2px;padding:4px 8px}small{color:#5b7083}
+#lg{max-width:320px;margin:60px auto;background:#fff;padding:20px;border-radius:12px}
+</style></head><body>
+<header><b>📚 Manager Dashboard</b><button id="imp" class="g" style="display:none">⬆ Import bundled library</button><button id="out" class="g" style="display:none">Logout</button></header>
+<div id="lg"><h3>Login</h3><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button id="go">Login</button><p id="msg"></p></div>
+<div id="app">
+<aside>
+ <h3>Books</h3><select id="bk"></select><input id="bt" placeholder="New book title"><button id="bAdd">＋ Add book</button>
+ <h3>Units</h3><select id="un"></select><input id="un_n" placeholder="Unit number"><input id="un_t" placeholder="Unit title"><button id="uAdd">＋ Add unit</button> <button id="uDel" class="r">Delete unit</button>
+ <h3>Pages</h3><input type="file" id="pf" multiple accept="image/*"><small>Name files like p94.jpg: the number becomes the page label and order.</small><div id="pl"></div>
+ <button id="pDel" class="r">Delete this page</button>
+</aside>
+<main><div id="pv"><img id="pi" alt="Select a page"><div id="ov"></div><div id="dr"></div></div></main>
+<section>
+ <h3>New button</h3>
+ <select id="kd"><option value="circle">Circle: drag around the correct option</option><option value="blank">Eye on a blank: click the blank</option><option value="note">Eye with a bigger answer: click where the eye goes</option><option value="audio">Audio: click the headphone icon</option><option value="video">Video: drag a rectangle</option></select>
+ <textarea id="an" rows="4" placeholder="Answer text (can use simple HTML like &lt;br&gt;)"></textarea>
+ <input type="file" id="mf" accept="audio/*,video/*"><small>Audio / video file (for audio and video buttons)</small>
+ <button id="sv">Save button</button> <small id="dm"></small>
+ <h3>Buttons on this page</h3><div id="hl"></div>
+</section></div>
+<script>
+const $=s=>document.querySelector(s);let sb,B,Un,PG,pgs=[],hs=[],D=null;
+const bucket=()=>sb.storage.from('media');const say=m=>{$('#msg').textContent=m};
+if(!CFG.url)say('config.js is empty: add your Supabase URL and key first.');else sb=supabase.createClient(CFG.url,CFG.key);
+$('#go').onclick=async()=>{const r=await sb.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});r.error?say(r.error.message):start()};
+$('#out').onclick=async()=>{await sb.auth.signOut();location.reload()};
+async function start(){$('#lg').style.display='none';$('#app').style.display='grid';$('#imp').style.display=$('#out').style.display='';await books()}
+sb&&sb.auth.getSession().then(r=>r.data.session&&start());
+const sel=(el,rows,f)=>{const v=el.value;el.innerHTML=rows.map(f).join('');if(rows.some(r=>r.id==v))el.value=v};
+async function books(){const{data}=await sb.from('books').select('*').order('sort');sel($('#bk'),data,r=>`<option value="${r.id}">${r.title}</option>`);await units()}
+$('#bk').onchange=units;
+async function units(){B=$('#bk').value;if(!B){$('#un').innerHTML='';return}const{data}=await sb.from('units').select('*').eq('book_id',B).order('num');sel($('#un'),data,r=>`<option value="${r.id}">Unit ${r.num}: ${r.title}</option>`);await pages()}
+$('#un').onchange=pages;
+async function pages(){Un=$('#un').value;if(!Un){$('#pl').innerHTML='';return}const{data}=await sb.from('pages').select('*').eq('unit_id',Un).order('sort');pgs=data;
+ $('#pl').innerHTML=pgs.map((p,i)=>`<button class="${PG&&PG.id==p.id?'':'g'}" onclick="pick(${i})">${p.label}</button>`).join('');
+ pgs.length?pick(PG?Math.max(0,pgs.findIndex(p=>p.id==PG.id)):0):($('#pi').removeAttribute('src'),PG=null)}
+async function pick(i){PG=pgs[i];$('#pl').querySelectorAll('button').forEach((b,j)=>b.className=j==i?'':'g');
+ const{data}=await bucket().createSignedUrl(PG.path,3600);$('#pi').src=data.signedUrl;await hot()}
+async function hot(){const{data}=await sb.from('hotspots').select('*').eq('page_id',PG.id);hs=data;
+ $('#ov').innerHTML=hs.map(h=>h.w>0?`<div class="m" style="left:${h.x}%;top:${h.y}%;width:${h.w}%;height:${h.h}%">${h.kind}</div>`:`<div class="m p" style="left:${h.x}%;top:${h.y}%" title="${h.kind}"></div>`).join('');
+ $('#hl').innerHTML=hs.map(h=>`<div class="it"><span>${h.kind}: ${(h.answer||h.path||'').replace(/<[^>]+>/g,' ').slice(0,28)}</span><button class="r" onclick="delH('${h.id}')">✕</button></div>`).join('')||'<small>None yet</small>'}
+async function delH(id){await sb.from('hotspots').delete().eq('id',id);hot()}
+$('#bAdd').onclick=async()=>{const t=$('#bt').value.trim();if(t){await sb.from('books').insert({title:t,sort:Date.now()%1e9});$('#bt').value='';books()}};
+$('#uAdd').onclick=async()=>{const n=+$('#un_n').value,t=$('#un_t').value.trim();if(B&&n&&t){await sb.from('units').insert({book_id:B,num:n,title:t});$('#un_n').value=$('#un_t').value='';units()}};
+$('#uDel').onclick=async()=>{if(Un&&confirm('Delete this unit with all its pages and buttons?')){await sb.from('units').delete().eq('id',Un);PG=null;units()}};
+$('#pDel').onclick=async()=>{if(PG&&confirm('Delete page '+PG.label+'?')){await sb.from('pages').delete().eq('id',PG.id);PG=null;pages()}};
+$('#pf').onchange=async e=>{if(!Un)return alert('Add a unit first');for(const f of e.target.files){const lab=f.name.replace(/\D/g,'')||f.name.replace(/\.\w+$/,''),path=`${B}/${Un}/${lab}.${f.name.split('.').pop().toLowerCase()}`;
+ const u=await bucket().upload(path,f,{upsert:true});if(u.error){alert(u.error.message);return}
+ await sb.from('pages').insert({unit_id:Un,label:lab,path,sort:+lab||999})}e.target.value='';pages()};
+const pc=e=>{const r=$('#pi').getBoundingClientRect();return[Math.min(100,Math.max(0,(e.clientX-r.left)/r.width*100)),Math.min(100,Math.max(0,(e.clientY-r.top)/r.height*100))]};
+let s0=null;const box=(x,y,w,h)=>{const d=$('#dr');d.style.cssText=`left:${x}%;top:${y}%;width:${w}%;height:${h}%`};
+$('#pv').onpointerdown=e=>{if(!PG)return;s0=pc(e);$('#pv').setPointerCapture(e.pointerId)};
+$('#pv').onpointermove=e=>{if(!s0)return;const c=pc(e);box(Math.min(s0[0],c[0]),Math.min(s0[1],c[1]),Math.abs(c[0]-s0[0]),Math.abs(c[1]-s0[1]))};
+$('#pv').onpointerup=e=>{if(!s0)return;const c=pc(e);D={x:Math.min(s0[0],c[0]),y:Math.min(s0[1],c[1]),w:Math.abs(c[0]-s0[0]),h:Math.abs(c[1]-s0[1])};s0=null;
+ if(D.w<1&&D.h<1){D.w=D.h=0;box(D.x-.5,D.y-.5,1,1)}else box(D.x,D.y,D.w,D.h);$('#dm').textContent='Position set ✓'};
+$('#sv').onclick=async()=>{if(!PG||!D)return alert('Pick a page, then click or drag on it first');const k=$('#kd').value,pt=k=='blank'||k=='note'||k=='audio';let{x,y,w,h}=D;
+ if(pt){x+=w/2;y+=h/2;w=h=0}else if(w<1||h<1)return alert('Drag a rectangle for this kind');
+ let path=null;const f=$('#mf').files[0];if((k=='audio'||k=='video')){if(!f)return alert('Choose the audio/video file');path=`${B}/${Un}/${f.name}`;const u=await bucket().upload(path,f,{upsert:true});if(u.error)return alert(u.error.message)}
+ const r=await sb.from('hotspots').insert({page_id:PG.id,kind:k,x,y,w,h,answer:$('#an').value||null,path});if(r.error)return alert(r.error.message);
+ D=null;box(0,0,0,0);$('#dm').textContent='Saved ✓';$('#an').value='';$('#mf').value='';hot()};
+$('#imp').onclick=async()=>{if(!window.LIB&&!(await new Promise(r=>{const s=document.createElement('script');s.src='data/library.js';s.onload=()=>r(1);s.onerror=()=>r(0);document.head.appendChild(s)})))return alert('data/library.js not found');
+ if(!confirm('Upload the bundled library (pages and buttons) to Supabase?'))return;const up=async(p,u)=>{try{const r=await fetch(u);if(!r.ok)return false;const x=await bucket().upload(p,await r.blob(),{upsert:true});return!x.error}catch(e){return false}};
+ for(const b of LIB.books){const bk=(await sb.from('books').insert({title:b.title,sort:Date.now()%1e9}).select().single()).data;
+  for(const u of b.units){const un=(await sb.from('units').insert({book_id:bk.id,num:u.num,title:u.title}).select().single()).data;let i=0;
+   for(const p of u.pages){const path=`${bk.id}/${un.id}/${p.label}.jpg`;await up(path,p.url);const pg=(await sb.from('pages').insert({unit_id:un.id,label:p.label,path,sort:i++}).select().single()).data;
+    for(const h of p.hs){let mp=null;if(h.m){const q=`${bk.id}/${un.id}/${h.m.split('/').pop()}`;if(await up(q,h.m))mp=q}
+     await sb.from('hotspots').insert({page_id:pg.id,kind:h.k,x:h.x,y:h.y,w:h.w||0,h:h.h||0,answer:h.a||null,path:mp})}}}}
+ alert('Done ✓');books()};
+</script></body></html>

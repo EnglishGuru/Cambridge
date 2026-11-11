@@ -2,213 +2,106 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cambridge Interactive Book</title>
-<script src="lib/page-flip.browser.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;height:100vh;overflow:hidden;font-family:system-ui,Segoe UI,Tahoma,sans-serif;background:radial-gradient(circle at 50% 30%,#12507a,#07243a 70%);color:#fff}
-.screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center}
-.screen.on{display:flex}
-/* cover */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center}.screen.on{display:flex}
 #cover{perspective:1600px;cursor:pointer}
 .bookcover{width:min(80vw,460px);aspect-ratio:3/4;background:linear-gradient(135deg,#0b3a5c,#0f6a8f);border:3px solid #e8c46a;border-radius:6px 18px 18px 6px;box-shadow:0 30px 70px #000a,inset 14px 0 24px #0006;display:flex;flex-direction:column;align-items:center;justify-content:center;transform-origin:left center;transition:transform 1.6s cubic-bezier(.6,0,.3,1),opacity 1.6s}
 .bookcover h1{font:700 clamp(36px,8vw,64px) Georgia,serif;margin:0;background:linear-gradient(90deg,#b8862b,#ffe9a3,#b8862b);background-size:200%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 3s linear infinite}
 @keyframes sh{to{background-position:-200%}}
 .bookcover p{color:#cfe8f5;letter-spacing:.3em;font-size:14px}
-.hint{margin-top:26px;color:#e8c46a;animation:pl 1.6s infinite}
-@keyframes pl{50%{opacity:.35}}
+.hint{margin-top:26px;color:#e8c46a;animation:pl 1.6s infinite}@keyframes pl{50%{opacity:.35}}
 #cover.open .bookcover{transform:rotateY(-110deg);opacity:0}
-/* units */
-#units h2{font:700 34px Georgia,serif;color:#ffe9a3;margin:0 0 24px}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(110px,190px));gap:18px}
-.u{padding:26px 10px;border-radius:14px;text-align:center;background:#ffffff14;border:2px dashed #ffffff33;color:#ffffff66;font-size:15px}
-.u b{display:block;font-size:34px}
-.u.live{background:linear-gradient(135deg,#0f8fb0,#0b5f87);border:2px solid #e8c46a;color:#fff;cursor:pointer;box-shadow:0 8px 24px #0006;transition:.2s}
-.u.live:hover{transform:translateY(-5px) scale(1.04)}
-/* reader */
+h2{font:700 32px Georgia,serif;color:#ffe9a3;margin:0 0 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,190px));gap:18px;justify-content:center;max-width:900px;padding:0 16px}
+.card{padding:26px 10px;border-radius:14px;text-align:center;background:linear-gradient(135deg,#0f8fb0,#0b5f87);border:2px solid #e8c46a;cursor:pointer;box-shadow:0 8px 24px #0006;transition:.2s}
+.card:hover{transform:translateY(-5px) scale(1.04)}.card b{display:block;font-size:34px}
+#login input{display:block;margin:8px 0;padding:10px;width:260px;border-radius:8px;border:0;font-size:16px}
+button{font-family:inherit}
 #reader{justify-content:flex-start}
-#bar{width:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;background:#00000055}
-#bar button{font:600 15px inherit;font-family:inherit;padding:8px 14px;border:0;border-radius:9px;background:#e8c46a;color:#07243a;cursor:pointer}
-#bar button.g{background:#ffffff22;color:#fff}
-#bar .sp{flex:1}
-#wrap{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
-#book{width:min(98vw,1500px);height:100%}
-.page{background:#fff;overflow:hidden}
-.page img{width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
-.ov{position:absolute;inset:0}
-.hs{position:absolute;transform:translate(0,-50%)}
-.ans{border:0;border-radius:99px;min-width:2.2em;padding:.12em .55em;background:#ffb400dd;color:#5a3a00;font:700 clamp(10px,1.45vw,19px) system-ui;cursor:pointer;box-shadow:0 2px 6px #0005}
-.ans.show{background:#fff;color:#0a7a2f;box-shadow:0 0 0 2px #0a7a2f,0 0 10px #ffd34d;animation:fi .4s}
-@keyframes fi{from{opacity:0;transform:scale(.7)}}
-.aud{width:7%;aspect-ratio:1;border-radius:50%;border:3px solid #e8c46a;background:#e8c46a33;cursor:pointer;transform:translate(-50%,-50%);animation:rg 1.8s infinite}
-.aud.play{background:#e8c46acc;animation:none}
-@keyframes rg{50%{box-shadow:0 0 0 8px #e8c46a44}}
-.vid{border:3px solid #e8c46a;border-radius:10px;background:#e8c46a33;cursor:pointer;transform:none;animation:rg 1.8s infinite}
-#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000c;padding:10px 18px;border-radius:10px;display:none;z-index:9}
-#modal{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:8}
-#modal video{max-width:92vw;max-height:86vh}
-#modal span{position:absolute;top:14px;right:22px;font-size:34px;cursor:pointer}
-.zb{position:absolute;top:1%;right:1.5%;width:7%;aspect-ratio:1;border:0;border-radius:50%;background:#07243acc;color:#fff;font-size:clamp(12px,2vw,24px);cursor:pointer;opacity:.75}
-#kp{position:fixed;right:10px;top:56px;width:min(440px,92vw);max-height:80vh;overflow:auto;background:#fffffa;color:#111;border-radius:12px;padding:12px 16px;display:none;z-index:6;box-shadow:0 10px 40px #000a;font-size:15px;line-height:1.5}
-#kp h4{margin:10px 0 4px;color:#0b5f87;border-bottom:2px solid #e8c46a}
-.kt{border-collapse:collapse;font-size:13px;margin:4px 0}.kt td,.kt th{border:1px solid #888;padding:3px 5px;vertical-align:top}
-#zoom{position:fixed;inset:0;background:#000e;display:none;z-index:7;touch-action:none;overflow:hidden}
-#zimg{position:absolute;left:50%;top:50%;height:94vh;max-width:none;user-select:none;-webkit-user-drag:none}
-#zc{position:fixed;top:12px;right:14px;display:flex;gap:8px;z-index:8}
-#zc button{font-size:22px;width:46px;height:46px;border:0;border-radius:10px;background:#e8c46a;cursor:pointer}
-#zh{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);color:#fff9;font-size:14px}
+#bar{width:100%;height:50px;display:flex;gap:8px;align-items:center;padding:0 10px;background:#000000aa;flex:none}
+#bar button,#bar select{font:600 15px inherit;font-family:inherit;padding:7px 13px;border:0;border-radius:9px;background:#e8c46a;color:#07243a;cursor:pointer}
+#bar .g{background:#ffffff26;color:#fff}#bar .sp{flex:1}
+#wrap{flex:1;width:100%;min-height:0;overflow:auto;display:flex;position:relative}
+#st{position:relative;margin:auto;flex:none;background:#fff;box-shadow:0 0 40px #000a}
+#st img{width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;animation:in .35s}
+@keyframes in{from{opacity:0;transform:translateX(3%)}}
+.nv{position:fixed;top:50%;transform:translateY(-50%);width:54px;height:90px;border:0;border-radius:12px;background:#000a;color:#fff;font-size:30px;cursor:pointer;z-index:5;opacity:.45}.nv:hover{opacity:1}
+#pv{left:6px}#nx{right:6px}
+.h{position:absolute;border:0;padding:0;background:none;cursor:pointer}
+.circle{border-radius:50%;border:0 solid #e5173f}.circle:hover{background:#ffd54a2a}
+.circle.on{border-width:calc(var(--u)*.55);box-shadow:0 0 calc(var(--u)*1.5) #e5173f99}
+.blank,.note{transform:translate(-50%,-50%);font-size:calc(var(--u)*1.7);line-height:1.3;padding:0 .3em;border-radius:99px;background:#ffb400e6;box-shadow:0 1px 4px #0005}
+.blank.on{background:#fff;color:#0a7a2f;font:700 calc(var(--u)*2.1)/1.25 system-ui;white-space:nowrap;box-shadow:0 0 0 calc(var(--u)*.3) #0a7a2f;animation:in .3s}
+.note{z-index:2}.note.on{background:#ffb400}
+.bub{position:absolute;top:135%;left:-1em;z-index:9;width:max-content;max-width:calc(var(--u)*46);background:#fffbe6;color:#12263a;border:calc(var(--u)*.3) solid #e8c46a;border-radius:calc(var(--u)*1);padding:calc(var(--u)*1) calc(var(--u)*1.4);font:500 calc(var(--u)*2.2)/1.35 system-ui;text-align:left;cursor:default;white-space:normal}
+.bub.r{left:auto;right:-1em}
+.audio{width:6.5%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);border:calc(var(--u)*.45) solid #e8c46a;background:#e8c46a33;animation:rg 1.8s infinite}
+.audio.play{background:#e8c46acc;animation:none}@keyframes rg{50%{box-shadow:0 0 0 calc(var(--u)*1) #e8c46a55}}
+.video{border:calc(var(--u)*.4) solid #e8c46a;border-radius:calc(var(--u)*1);background:#e8c46a33;animation:rg 1.8s infinite}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000d;padding:10px 18px;border-radius:10px;display:none;z-index:20}
+#modal{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;z-index:15}
+#modal video{max-width:92vw;max-height:86vh}#modal span{position:absolute;top:14px;right:22px;font-size:36px;cursor:pointer}
 </style></head><body>
-
-<div id="cover" class="screen on">
-  <div class="bookcover"><h1>Cambridge</h1><p>ENGLISH · INTERACTIVE BOOK</p></div>
-  <div class="hint">اضغطي لفتح الكتاب ✨</div>
-</div>
-<div id="units" class="screen"><h2>Units</h2><div class="grid" id="ugrid"></div></div>
-<div id="reader" class="screen">
-  <div id="bar"></div>
-  <div id="wrap"><div id="book"></div></div>
-</div>
-<div id="kp"></div>
-<div id="zoom"><img id="zimg" alt=""><div id="zc" onpointerdown="event.stopPropagation()"><button onclick="zz(1.4)">＋</button><button onclick="zz(1/1.4)">－</button><button onclick="closeZoom()">✕</button></div><div id="zh">عجلة الماوس أو بإصبعين للتكبير · اسحبي لتحريك الصفحة</div></div>
-<div id="toast"></div>
-<div id="modal"><span onclick="closeVid()">×</span><video id="vp" controls></video></div>
-<audio id="au"></audio>
-
+<div id="cover" class="screen on"><div class="bookcover"><h1>Cambridge</h1><p>ENGLISH · INTERACTIVE BOOK</p></div><div class="hint">اضغطي لفتح الكتاب ✨</div></div>
+<div id="login" class="screen"><h2>Login</h2><input id="em" type="email" placeholder="Email"><input id="pw" type="password" placeholder="Password"><button id="lgo" class="card" style="padding:10px 30px;color:#fff">Login</button></div>
+<div id="shelf" class="screen"><h2>Books</h2><div class="grid" id="bgrid"></div></div>
+<div id="units" class="screen"><h2 id="bt"></h2><div class="grid" id="ugrid"></div><button class="card" style="margin-top:22px;padding:10px 24px;color:#fff" onclick="shelf()">◀ Books</button></div>
+<div id="reader" class="screen"><div id="bar"></div><div id="wrap"><div id="st"></div></div>
+<button class="nv" id="pv" onclick="go(-1)">‹</button><button class="nv" id="nx" onclick="go(1)">›</button></div>
+<div id="toast"></div><div id="modal"><span onclick="closeVid()">×</span><video id="vp" controls></video></div>
 <script>
-/* ========= الإعدادات: لإضافة يونت جديد انسخي نفس الشكل ========= */
-const UNITS = {
- 6:{title:"Going places",
-  pages:[93,94,95,96,97,98,99,100,101],   // أرقام الصفحات (الصور في فولدر pages/p93.jpg ...)
-  lessons:[["6.1",94],["6.2",96],["6.3",98],["6.4",100]],
-  // ans: الإجابة | x,y = مكان الزرار بالنسبة المئوية من الصفحة | blank:true يغطي الفراغ
-  hot:[
-   {p:94,t:"ans",x:60,y:29.8,a:"c  a helicopter"},
-   {p:94,t:"ans",x:62,y:35.2,a:"a  a bike"},
-   {p:94,t:"ans",x:53,y:46,a:"b  on foot"},
-   {p:94,t:"ans",c:1,s:1,x:19.4,y:89.7,a:"d"},
-   {p:94,t:"ans",c:1,s:1,x:33.7,y:89.7,a:"e"},
-   {p:94,t:"ans",c:1,s:1,x:49,y:89.7,a:"f"},
-   {p:94,t:"ans",c:1,s:1,x:61.9,y:89.7,a:"b"},
-   {p:94,t:"ans",c:1,s:1,x:71.6,y:89.7,a:"c"},
-   {p:94,t:"ans",c:1,s:1,x:84.7,y:89.7,a:"a"},
-   {p:97,t:"ans",x:22,y:51.5,a:"isn't",blank:1},
-   {p:97,t:"ans",x:43.7,y:53.4,a:"wears",blank:1},
-   {p:97,t:"ans",x:29.7,y:55.5,a:"rides",blank:1},
-   {p:97,t:"ans",x:24,y:57.5,a:"travel",blank:1},
-   {p:98,t:"ans",x:31.2,y:75.4,a:"Museum",blank:1},
-   {p:98,t:"ans",x:56.2,y:75.4,a:"garden",blank:1},
-   {p:98,t:"ans",x:23.8,y:80.5,a:"walk",blank:1},
-   {p:98,t:"ans",x:36.9,y:83,a:"right",blank:1},
-   {p:98,t:"ans",x:19,y:85.5,a:"left",blank:1},
-   {p:98,t:"ans",x:42.7,y:88,a:"on",blank:1},
-   {p:99,t:"ans",c:1,x:22.5,y:44.1,a:"swimming pool"},
-   {p:99,t:"ans",c:1,x:42.8,y:44.1,a:"restaurant"},
-   {p:99,t:"ans",c:1,x:59.5,y:44.1,a:"hotel"},
-   {p:99,t:"ans",c:1,x:73.8,y:44.1,a:"playground"},
-   {p:95,t:"aud",x:7.6,y:11.9,track:36},
-   {p:95,t:"aud",x:7.6,y:17.3,track:36},
-   {p:96,t:"aud",x:8.3,y:32.3,track:37},
-   {p:98,t:"aud",x:8.3,y:56.5,track:38},
-   {p:98,t:"aud",x:8.3,y:69.1,track:38},
-   {p:93,t:"vid",x:5,y:88.4,w:17,src:"video/unit6_watch_this.mp4"}
-  ]}
-};
-const TOTAL_UNITS = 9;
-/* ================================================================ */
-const $=s=>document.querySelector(s);
-function show(id){document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(id).classList.add('on')}
-function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3800)}
-
-$('#cover').onclick=()=>{$('#cover').classList.add('open');setTimeout(()=>show('#units'),1500)};
-const g=$('#ugrid');
-for(let n=1;n<=TOTAL_UNITS;n++){
-  const d=document.createElement('div');
-  d.className='u'+(UNITS[n]?' live':'');
-  d.innerHTML=`<b>${n}</b>${UNITS[n]?UNITS[n].title:'قريباً'}`;
-  if(UNITS[n])d.onclick=()=>openUnit(n);
-  g.appendChild(d);
-}
-
-let pf=null;
-function openUnit(n){
-  const U=UNITS[n];curU=U;show('#reader');kpHide();
-  if(pf){pf.destroy();pf=null}
-  const book=$('#book');book.innerHTML='';
-  U.pages.forEach((num,i)=>{
-    const pg=document.createElement('div');pg.className='page';
-    if(i==0)pg.dataset.density='hard';
-    pg.innerHTML=`<img src="pages/p${num}.jpg" alt="page ${num}"><div class="ov"></div>`;
-    const ov=pg.querySelector('.ov');const zb=document.createElement('button');zb.className='zb';zb.textContent='🔍';zb.title='تكبير الصفحة';zb.onclick=e=>{e.stopPropagation();openZoom('pages/p'+num+'.jpg')};ov.appendChild(zb);ov.ondblclick=()=>openZoom('pages/p'+num+'.jpg');
-    U.hot.filter(h=>h.p==num).forEach(h=>{
-      const b=document.createElement('button');b.className='hs';
-      b.style.left=h.x+'%';b.style.top=h.y+'%';if(h.c)b.style.transform='translate(-50%,-50%)';
-      if(h.t=='ans'){
-        b.classList.add('ans');b.dataset.off=(h.blank||h.s)?'👁':'👁 answer';b.textContent=b.dataset.off;b.dataset.a=h.a;
-        b.onclick=e=>{e.stopPropagation();tog(b)};
-      }else if(h.t=='aud'){
-        b.classList.add('aud');b.title='Track '+h.track;
-        b.onclick=e=>{e.stopPropagation();playTrack(h.track,b)};
-      }else{
-        b.classList.add('vid');b.style.width=h.w+'%';b.style.height='3.6%';b.title='Watch this!';
-        b.onclick=e=>{e.stopPropagation();openVid(h.src)};
-      }
-      ov.appendChild(b);
-    });
-    book.appendChild(pg);
-  });
-  pf=new St.PageFlip(book,{width:600,height:751,size:'stretch',minWidth:260,maxWidth:1000,minHeight:330,maxHeight:1250,showCover:true,maxShadowOpacity:.5,mobileScrollSupport:false,clickEventForward:true,useMouseEvents:true});
-  pf.loadFromHTML(book.querySelectorAll('.page'));
-  const flipSound=new Audio('audio/flip.mp3');
-  pf.on('flip',()=>{flipSound.currentTime=0;flipSound.play().catch(()=>{})});
-  const bar=$('#bar');
-  bar.innerHTML=`<button class="g" id="bUnits">☰ Units</button><b style="margin:0 6px;color:#ffe9a3">Unit ${n}: ${U.title}</b>`+
-    U.lessons.map(l=>`<button class="g" data-pg="${U.pages.indexOf(l[1])}">${l[0]}</button>`).join('')+
-    `<span class="sp"></span><button id="bPrev" class="g">◀</button><button id="bNext" class="g">▶</button>
-     <button id="bKey" class="g">📋 Answers</button><button id="bAll">👁 Reveal All</button><button id="bNone" class="g">Hide All</button><button id="bFs" class="g">⛶</button>`;
-  $('#bUnits').onclick=()=>{stopAudio();show('#units')};
-  bar.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>pf.flip(+b.dataset.pg));
-  $('#bPrev').onclick=()=>pf.flipPrev();$('#bNext').onclick=()=>pf.flipNext();
-  $('#bAll').onclick=()=>document.querySelectorAll('.ans').forEach(b=>tog(b,true));
-  $('#bNone').onclick=()=>document.querySelectorAll('.ans').forEach(b=>tog(b,false));
-  $('#bKey').onclick=kpToggle;$('#bFs').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-}
-function tog(b,force){const on=force===undefined?!b.classList.contains('show'):force;b.classList.toggle('show',on);b.textContent=on?b.dataset.a:b.dataset.off}
-const au=$('#au');let curBtn=null;
-function stopAudio(){au.pause();if(curBtn)curBtn.classList.remove('play');curBtn=null}
-function playTrack(n,b){
-  if(curBtn===b&&!au.paused){stopAudio();return}
-  stopAudio();
-  au.src=`audio/track${n}.mp3`;curBtn=b;b.classList.add('play');
-  au.play().catch(()=>{toast(`ملف الصوت audio/track${n}.mp3 مش موجود — حطيه في فولدر audio`);b.classList.remove('play')});
-  au.onended=()=>b.classList.remove('play');
-}
-function openVid(src){const v=$('#vp');v.src=src;$('#modal').style.display='flex';v.play().catch(()=>toast('الفيديو '+src+' مش موجود — حطيه في فولدر video'))}
+const $=s=>document.querySelector(s);let LIB,sb,U,pi=0,z=1,curBtn=null,curBook=null;const au=new Audio(),ZS=[1,1.5,2.2];
+const show=id=>{document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(id).classList.add('on')};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000)};
+$('#cover').onclick=async()=>{$('#cover').classList.add('open');try{LIB=await loadLib()}catch(e){toast('Error: '+(e.message||e));return}setTimeout(shelf,1400)};
+function login(){return new Promise(res=>{show('#login');$('#lgo').onclick=async()=>{const r=await sb.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});r.error?toast(r.error.message):res()}})}
+async function loadLib(){
+ if(!CFG.url)return window.LIB;
+ sb=supabase.createClient(CFG.url,CFG.key);
+ let{data:{session}}=await sb.auth.getSession();
+ while(!session){await login();({data:{session}}=await sb.auth.getSession())}
+ const q=t=>sb.from(t).select('*').then(r=>{if(r.error)throw r.error;return r.data});
+ const[b,u,p,h]=await Promise.all(['books','units','pages','hotspots'].map(q));
+ const o=(a,k)=>a.sort((x,y)=>(x[k]??0)-(y[k]??0));
+ return{books:o(b,'sort').map(bk=>({title:bk.title,units:o(u.filter(x=>x.book_id==bk.id),'num').map(un=>({num:un.num,title:un.title,pages:o(p.filter(x=>x.unit_id==un.id),'sort').map(pg=>({label:pg.label,path:pg.path,hs:h.filter(x=>x.page_id==pg.id).map(x=>({k:x.kind,x:x.x,y:x.y,w:x.w,h:x.h,a:x.answer,mp:x.path}))}))}))}))}}
+async function sign(u){if(!sb)return;const ps=[...new Set([...u.pages.map(p=>p.path),...u.pages.flatMap(p=>p.hs.map(h=>h.mp))].filter(Boolean))];
+ const{data}=await sb.storage.from('media').createSignedUrls(ps,7200);const m={};data.forEach(d=>m[d.path]=d.signedUrl);
+ u.pages.forEach(p=>{p.url=m[p.path];p.hs.forEach(h=>h.m=m[h.mp])})}
+function shelf(){const g=$('#bgrid');g.innerHTML='';LIB.books.forEach(b=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>📘</b>${b.title}`;d.onclick=()=>units(b);g.appendChild(d)});show('#shelf')}
+function units(b){curBook=b;$('#bt').textContent=b.title;const g=$('#ugrid');g.innerHTML='';b.units.forEach(u=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<b>${u.num}</b>${u.title}`;d.onclick=()=>openUnit(u);g.appendChild(d)});show('#units')}
+async function openUnit(u){try{await sign(u)}catch(e){toast(e.message);return}U=u;pi=0;z=1;show('#reader');
+ $('#bar').innerHTML=`<button class="g" id="bb">☰</button><b>Unit ${u.num}: ${u.title}</b><select id="sel">${u.pages.map((p,i)=>`<option value="${i}">Page ${p.label}</option>`).join('')}</select><span class="sp"></span>
+ <button id="bAu" class="g" style="display:none">⏸ Pause</button><button id="bA">👁 Reveal All</button><button id="bN" class="g">Hide All</button><button id="bZ" class="g">🔍</button><button id="bF" class="g">⛶</button>`;
+ $('#bb').onclick=()=>{stopAu();show('#units')};$('#sel').onchange=e=>{pi=+e.target.value;draw()};
+ $('#bA').onclick=()=>setAll(true);$('#bN').onclick=()=>setAll(false);
+ $('#bZ').onclick=()=>{z=ZS[(ZS.indexOf(z)+1)%ZS.length];fit()};
+ $('#bF').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+ $('#bAu').onclick=()=>{au.paused?au.play():au.pause()};draw()}
+function go(d){const n=Math.max(0,Math.min(U.pages.length-1,pi+d));if(n!=pi){pi=n;draw()}}
+function draw(){stopAu();const p=U.pages[pi],st=$('#st');st.innerHTML=`<img src="${p.url}" alt="">`;p.hs.forEach(h=>st.appendChild(mk(h)));$('#sel').value=pi;fit()}
+function fit(){const w=$('#wrap'),H=Math.min(w.clientHeight,w.clientWidth/.8)*z,st=$('#st');st.style.height=H+'px';st.style.width=H*.8+'px';st.style.setProperty('--u',H/100+'px')}
+function mk(h){const b=document.createElement('button');b.className='h '+h.k;b.style.left=h.x+'%';b.style.top=h.y+'%';b.dataset.a=h.a||'';b.dataset.k=h.k;
+ if(h.k=='circle'||h.k=='video'){b.style.width=h.w+'%';b.style.height=h.h+'%'}
+ if(h.k=='audio')b.onclick=()=>play(h.m,b);
+ else if(h.k=='video')b.onclick=()=>vid(h.m);
+ else{b.onclick=()=>tog(b);if(h.k!='circle')b.textContent='👁'}
+ return b}
+function tog(b,f){const on=f===undefined?!b.classList.contains('on'):f,k=b.dataset.k;b.classList.toggle('on',on);
+ if(k=='blank')b.textContent=on?b.dataset.a:'👁';
+ if(k=='note'){const o=b.querySelector('.bub');if(o)o.remove();if(on){const d=document.createElement('div');d.className='bub'+(parseFloat(b.style.left)>50?' r':'');d.innerHTML=b.dataset.a;d.onclick=e=>e.stopPropagation();b.appendChild(d)}}}
+function setAll(on){document.querySelectorAll('#st .h').forEach(b=>{if(b.dataset.k=='circle'||b.dataset.k=='blank')tog(b,on);else if(!on&&b.dataset.k=='note')tog(b,false)})}
+function upd(){document.querySelectorAll('.audio').forEach(b=>b.classList.toggle('play',b===curBtn&&!au.paused));const t=$('#bAu');if(!t)return;t.style.display=curBtn?'':'none';t.textContent=au.paused?'▶ Resume':'⏸ Pause'}
+au.onplay=au.onpause=upd;au.onended=()=>{curBtn=null;upd()};
+function stopAu(){au.pause();curBtn=null;upd()}
+function play(src,b){if(curBtn===b){au.paused?au.play():au.pause();return}au.pause();curBtn=b;au.src=src;au.play().catch(()=>{toast('ملف الصوت مش موجود: '+src);curBtn=null;upd()})}
+function vid(s){const v=$('#vp');v.src=s;$('#modal').style.display='flex';v.play().catch(()=>toast('الفيديو مش موجود'))}
 function closeVid(){const v=$('#vp');v.pause();v.removeAttribute('src');$('#modal').style.display='none'}
-
-let curU=null;
-const KEY={
-93:`<b>Getting started</b><br>a Four different ways of travelling: on foot, by bike, by car, by train. Differences: some transport types use fuel; large/small numbers of passengers; fast/slow; ticket needed; public/private transport.<br>b City map, pedestrian crossing, helmet, seatbelts. Learner's own answers.<br>c Learner's own answers.`,
-94:`<b>6.1 Getting around</b><br><b>1</b> 1 c · 2 a · 3 Trains that travel under the ground in a city. · 4 Possible answers: trams, buses, cars, electric bikes, electric scooters, hoverboards. · 5 b<br><b>3</b> ferry d, motorbike e, tuk-tuk f, tram b, train c, car a`,
-95:`<b>4</b> 1 f · 2 a · 3 e · 4 d · 5 b<br><b>5</b><table class="kt"><tr><td>Transport</td><td>Good points</td><td>Bad points</td></tr><tr><td>tuk-tuk</td><td>Good fun. It's faster than walking. You don't get stuck in traffic jams! You don't have to wait behind cars.</td><td>Open on both sides, so you breathe in traffic fumes.</td></tr><tr><td>car</td><td>You don't get wet when it rains.</td><td>Sometimes we get stuck in traffic and are nearly late for school.</td></tr><tr><td>motorbike</td><td>Fast. Gets to spend time alone with his dad.</td><td>You get very wet when it rains hard.</td></tr><tr><td>ferry</td><td>Can look at lovely views.</td><td>Very cold in winter.</td></tr><tr><td>tram</td><td>Quite fast. Stops right outside school.</td><td>Often really crowded. Sometimes don't get a seat.</td></tr></table><b>7</b> She takes a ride on a zipwire. It takes one minute.<br><b>8</b> Hike – a long walk usually in the countryside.<br>Zipwire – a long thick wire between two points. You can travel along it by hanging onto a small wheel on the wire.<br>Canyon – a large valley with very steep sides.<br>Harness – something you wear with straps and belts that stops you falling.<br>Cable – a thick strong wire.<br><b>9</b> a She could take a two-hour hike through the jungle. She probably takes the zipwire because it is much faster.<br>b She helps her brothers get safely to the other side by fixing them into their harnesses first (before she travels).<br>c Nearly 50 kph.<br>d She feels nervous.<br><b>10</b> Get to school (x2)/get safely to the other side/it never gets any easier/gets nervous.<br><b>11</b> Learner's own answers.`,
-96:`<b>6.2 Road safety</b><br>1 Learner's own answers.<br>2 Learner's own answers.`,
-97:`<b>3</b><table class="kt"><tr><td>What keeps you safe?</td><td>When?</td></tr><tr><td>a helmet</td><td>when you ride your bike</td></tr><tr><td>reflective armbands</td><td>when you walk home from school when it's dark</td></tr><tr><td>not going near lorries</td><td>at any time</td></tr><tr><td>use pedestrian crossings</td><td>when crossing busy roads</td></tr><tr><td>wear seatbelts</td><td>in a car</td></tr></table><b>4</b> a isn't · b wears · c rides · d travel. Learner's own answers (ticking sentences).<br><b>5</b> a It is safe to cross the road.<br>b Drive carefully because children might cross the road.<br>c You must not drive over 40 mph.`,
-98:`<b>6.3 Getting around cities</b><br>1 Learner's own answers<br><b>3</b><table class="kt"><tr><td>Sports and activities</td><td>Entertainment</td><td>Eating</td><td>Sleeping</td></tr><tr><td>swimming pool<br>beach<br>sports centre<br>playground<br>park</td><td>museum<br>cinema<br>theatre<br>theme park</td><td>picnic site<br>restaurant</td><td>hotel</td></tr></table>Plus learner's own answers<br><b>4</b> a Underground, walking · b museum<br><b>5</b> 1 Museum; 2 garden; 3 walk; 4 right; 5 left; 6 on`,
-99:`<b>7</b> a swimming pool · b restaurant · c hotel · d playground`,
-100:`<b>6.4 Travel experiences</b><br><b>1</b> The London Eye is probably called this because you can see so much of London as you travel around its circuit.<br><b>4</b> very big (x2): huge, enormous · laugh: giggle · very small: tiny · shine: sparkle · very interesting: amazing · look (for a long time): stare · go up: rise<br>Verbs: giggle, sparkle, stare, rise<br>Adjectives: huge, enormous, tiny, amazing<br><b>5</b> The 'strong' words are more interesting and help the reader imagine more clearly what it is like to travel on the London Eye.`,
-101:`<b>6</b> Suggested answers:<br>a We stood on the 60th floor of an enormous glass skyscraper.<br>b I stared out of the huge, tall windows.<br>c The view was amazing – I could see lots of palaces, skyscrapers, towers and churches and thousands of streets below.<br><b>7</b> Learner's own answers.`
-};
-function kpHide(){$('#kp').style.display='none'}
-function kpToggle(){const k=$('#kp');if(k.style.display=='block'){kpHide();return}
- const i=pf.getCurrentPageIndex();let idx=[i];if(pf.getOrientation()=='landscape'&&i>0&&i+1<curU.pages.length)idx=[i,i+1];
- k.innerHTML='<span onclick="kpHide()" style="float:right;cursor:pointer;font-size:26px">×</span>'+idx.map(j=>{const p=curU.pages[j];return `<h4>Page ${p}</h4>`+(KEY[p]||'—')}).join('');k.style.display='block'}
-let zs={s:1,x:0,y:0};const P=new Map();let d0=0,s0=1;
-function applyZ(){$('#zimg').style.transform=`translate(-50%,-50%) scale(${zs.s}) translate(${zs.x}px,${zs.y}px)`}
-function openZoom(src){$('#zimg').src=src;zs={s:1,x:0,y:0};applyZ();$('#zoom').style.display='block'}
-function closeZoom(){$('#zoom').style.display='none'}
-function zz(f){zs.s=Math.min(6,Math.max(1,zs.s*f));if(zs.s==1){zs.x=zs.y=0}applyZ()}
-const Z=$('#zoom');
-Z.onpointerdown=e=>{P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size==2){const[a,b]=[...P.values()];d0=Math.hypot(a[0]-b[0],a[1]-b[1]);s0=zs.s}};
-Z.onpointermove=e=>{if(!P.has(e.pointerId))return;const o=P.get(e.pointerId);if(P.size==1){zs.x+=(e.clientX-o[0])/zs.s;zs.y+=(e.clientY-o[1])/zs.s}P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size==2){const[a,b]=[...P.values()];zs.s=Math.min(6,Math.max(1,s0*Math.hypot(a[0]-b[0],a[1]-b[1])/d0))}applyZ()};
-Z.onpointerup=Z.onpointercancel=e=>P.delete(e.pointerId);
-Z.onwheel=e=>{e.preventDefault();zz(e.deltaY<0?1.2:1/1.2)};
-document.addEventListener('keydown',e=>{if(e.key=='Escape')closeZoom()});
+addEventListener('keydown',e=>{if(!U||!$('#reader').classList.contains('on'))return;if(e.key=='ArrowRight'||e.key=='PageDown')go(1);if(e.key=='ArrowLeft'||e.key=='PageUp')go(-1);if(e.key==' '&&curBtn){e.preventDefault();au.paused?au.play():au.pause()}});
+addEventListener('resize',()=>U&&fit());
+let tx=0;$('#wrap').addEventListener('touchstart',e=>tx=e.touches[0].clientX);$('#wrap').addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-tx;if(z==1&&Math.abs(d)>80)go(d<0?1:-1)});
 </script></body></html>
