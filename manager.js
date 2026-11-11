@@ -1,6 +1,6 @@
 (()=>{
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'book',safe=n=>n.replace(/[^\w.\-]+/g,'_');
 const b64=s=>btoa(unescape(encodeURIComponent(s))),fb=f=>new Promise(r=>{const x=new FileReader();x.onload=()=>r(x.result);x.readAsDataURL(f)});
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),r2=v=>Math.round(v*100)/100;
@@ -49,8 +49,10 @@ const CSS=`
 .file{padding:8px 10px;background:#eef4f8;border-radius:9px}.file.none{color:#a05a00;background:#fff4de}.up{display:block;text-align:center;margin-top:8px;padding:9px;border:1.5px dashed #0f8fb0;color:#0b5f87;border-radius:9px;cursor:pointer;font-weight:600}
 .empty{margin:auto;color:#6b7f8f;text-align:center}.card{margin:auto;background:#fff;border-radius:16px;padding:28px;width:min(420px,92vw);box-shadow:0 10px 40px #0002;text-align:center}.card input{display:block;width:100%;margin:8px 0;padding:11px;border:1px solid #c5d3df;border-radius:10px;font:inherit}.card .logo{font-size:40px}.er{color:#c63b3b;min-height:20px}.card ol{text-align:left;color:#35506a;padding-left:20px}
 .mdl{position:fixed;inset:0;background:#0008;z-index:60;display:flex;align-items:center;justify-content:center}.mbox{background:#fff;border-radius:14px;padding:20px;width:min(380px,92vw)}.mbox h3{margin:0 0 8px;color:#0b5f87}.mbox .row{justify-content:flex-end}
+.lkb{position:absolute;right:-8px;top:-12px;font-size:11px;pointer-events:none;z-index:3}.chk{display:flex;gap:8px;align-items:center;margin:6px 0;font-weight:600;color:#35506a}.chk input{width:auto;margin:0}.pad{display:flex;gap:6px;margin-top:6px}.pad button{flex:1}.pad button[disabled]{opacity:.4;cursor:not-allowed}
 `;
-const style=document.createElement('style');style.textContent=CSS;document.head.appendChild(style);
+const SC=CSS.replace(/(^|\})\s*([^{}]+)\{/g,(m,a,sel)=>a+sel.split(',').map(x=>{x=x.trim();return x.startsWith('#mg')?x:'#mg '+x}).join(',')+'{');
+const style=document.createElement('style');style.textContent=SC;document.head.appendChild(style);
 
 /* ---------- GitHub storage ---------- */
 const GH=()=>({Authorization:'Bearer '+G.t,Accept:'application/vnd.github+json'});
@@ -67,27 +69,35 @@ addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='
 /* ---------- dialogs ---------- */
 function dlg(title,fields,ok,danger){return new Promise(res=>{const d=document.createElement('div');d.className='mdl';
  d.innerHTML=`<form class="mbox"><h3>${title}</h3>${fields.map(f=>f.html?`<p class="mu">${f.html}</p>`:`<label class="f">${f.label}<input name="${f.name}" value="${esc(f.value)}" ${f.num?'type="number"':''} autocomplete="off"></label>`).join('')}<div class="row"><button type="button" class="gh" id="dx">Cancel</button><button class="pr ${danger?'dg':''}">${ok||'OK'}</button></div></form>`;
- document.body.appendChild(d);const f=$('form',d),i=$('input',d);i&&i.focus();const end=v=>{d.remove();res(v)};
+ (root||document.body).appendChild(d);const f=$('form',d),i=$('input',d);i&&i.focus();const end=v=>{d.remove();res(v)};
  $('#dx',d).onclick=()=>end(null);f.onsubmit=e=>{e.preventDefault();const o={};new FormData(f).forEach((v,k)=>o[k]=v);end(o)}})}
 
 /* ---------- boot / login ---------- */
-const loadSB=()=>window.supabase?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';s.onload=ok;s.onerror=()=>no(new Error('Could not load the login library (check internet)'));document.head.appendChild(s)});
+const loadSB=()=>window.supabase?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='lib/supabase.js?v=3';s.onload=ok;s.onerror=()=>no(new Error('Could not load the login library (check internet)'));document.head.appendChild(s)});
 const view=h=>{root.innerHTML=`<header><b>📚 Manager</b><span class="sp"></span><button class="gh" id="cl0">✕ Close</button></header><div style="flex:1;display:flex;overflow:auto;padding:16px">${h}</div>`;$('#cl0').onclick=close};
-async function open(lib,cb){L=lib;onClose=cb;root=document.createElement('div');root.id='mg';document.body.appendChild(root);view('<div class="empty">Loading…</div>');
- try{if(!C.supabaseUrl||!C.supabaseKey)return view(`<div class="card"><div class="logo">⚙️</div><h2>One-time setup needed</h2><p class="mu">Open <b>config.js</b> in your GitHub repository and paste your Supabase URL and anon key, then reload this page.</p></div>`);
-  await loadSB();sb=supabase.createClient(C.supabaseUrl,C.supabaseKey);const{data:{session}}=await sb.auth.getSession();session?after():login()}
- catch(e){view(`<div class="card"><h2>Something went wrong</h2><p class="er">${esc(e.message)}</p></div>`)}}
+const withT=(p,ms,label)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(new Error('No answer while '+label+' (waited '+ms/1000+'s). Check the Supabase URL/key in config.js and your internet.')),ms))]);
+const step=m=>view(`<div class="empty"><div style="font-size:34px">⏳</div>${m}</div>`);
+function fail(e){const m=(e&&e.message)||String(e);view(`<div class="card"><div class="logo">⚠️</div><h2>Couldn't connect</h2><p class="er">${esc(m)}</p><div class="row" style="justify-content:center"><button class="pr" id="rt">Try again</button><button class="gh" id="so">Sign out and retry</button></div></div>`);
+ $('#rt').onclick=()=>start();$('#so').onclick=async()=>{try{await sb.auth.signOut()}catch(x){}Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k));start()}}
+addEventListener('unhandledrejection',ev=>{if(root&&root.isConnected&&!$('#cvw')&&$('.empty'))fail(ev.reason)});
+async function open(lib,cb){L=lib;onClose=cb;if(root&&root.isConnected)root.remove();root=document.createElement('div');root.id='mg';document.body.appendChild(root);start()}
+async function start(){try{
+  if(!C.supabaseUrl||!C.supabaseKey)return view(`<div class="card"><div class="logo">⚙️</div><h2>One-time setup needed</h2><p class="mu">Open <b>config.js</b> in your GitHub repository and paste your Supabase URL and key, then reload this page.</p></div>`);
+  step('Loading login library…');await loadSB();
+  if(!sb)sb=supabase.createClient(C.supabaseUrl,C.supabaseKey);
+  step('Checking your login…');const{data:{session}}=await withT(sb.auth.getSession(),12000,'checking your login');
+  session?await after():login()}catch(e){fail(e)}}
 function login(msg=''){view(`<div class="card"><div class="logo">📚</div><h2>Teacher login</h2><p class="mu">Same email and password on any device.</p><form id="lf"><input name="e" type="email" placeholder="Email" required autocomplete="username"><input name="p" type="password" placeholder="Password" required autocomplete="current-password"><div class="er">${msg}</div><button class="pr" style="width:100%">Log in</button></form></div>`);
- $('#lf').onsubmit=async ev=>{ev.preventDefault();const f=new FormData(ev.target),r=await sb.auth.signInWithPassword({email:f.get('e'),password:f.get('p')});r.error?login(esc(r.error.message)):after()}}
-async function after(){view('<div class="empty">Connecting…</div>');const r=await sb.from('settings').select('value').eq('key','gh_token').maybeSingle();
- if(r.error)return view(`<div class="card"><h2>Setup not finished</h2><p class="er">${esc(r.error.message)}</p><p class="mu">Run <b>supabase-setup.sql</b> in the Supabase SQL Editor.</p></div>`);
- if(!r.data)return tokenView();G.t=r.data.value;await loadLib()}
+ $('#lf').onsubmit=async ev=>{ev.preventDefault();const f=new FormData(ev.target);let r;try{r=await withT(sb.auth.signInWithPassword({email:f.get('e'),password:f.get('p')}),15000,'logging in')}catch(er){return login(esc(er.message))}r.error?login(esc(r.error.message)):after()}}
+async function after(){try{step('Reading your settings…');const r=await withT(sb.from('settings').select('value').eq('key','gh_token').maybeSingle(),15000,'reading your settings');
+ if(r.error){view(`<div class="card"><h2>Setup not finished</h2><p class="er">${esc(r.error.message)}</p><p class="mu">Run <b>supabase-setup.sql</b> in the Supabase SQL Editor (with your email inside it).</p><div class="row" style="justify-content:center"><button class="gh" id="so2">Sign out</button></div></div>`);$('#so2').onclick=async()=>{await sb.auth.signOut();start()};return}
+ if(!r.data)return tokenView();G.t=r.data.value;await loadLib()}catch(e){fail(e)}}
 function tokenView(msg=''){view(`<div class="card"><div class="logo">🔑</div><h2>Connect GitHub</h2><p class="mu">Paste your GitHub token once. It is stored in your private login, so it works on every device.</p><form id="tf"><input name="o" placeholder="GitHub username" value="${esc(G.o)}"><input name="r" placeholder="Repository name" value="${esc(G.r)}"><input name="t" type="password" placeholder="github_pat_…" required><div class="er">${msg}</div><button class="pr" style="width:100%">Connect</button></form></div>`);
  $('#tf').onsubmit=async ev=>{ev.preventDefault();const f=new FormData(ev.target);G.o=f.get('o').trim();G.r=f.get('r').trim();G.t=f.get('t').trim();
   const x=await fetch(`https://api.github.com/repos/${G.o}/${G.r}`,{headers:GH()});if(!x.ok)return tokenView(esc(errMsg(x.status)));
   const u=await sb.from('settings').upsert({key:'gh_token',value:G.t});if(u.error)return tokenView(esc(u.error.message));await loadLib()}}
 async function loadLib(){try{const t=await ghRead('data/library.json');L.books=JSON.parse(t).books}catch(e){if(/token|permission/i.test(e.message))return tokenView(esc(e.message));return view(`<div class="card"><h2>Could not load the library</h2><p class="er">${esc(e.message)}</p></div>`)}
- S.b=S.u=S.p=0;S.sel=-1;editor()}
+ S.b=S.u=S.p=0;S.sel=-1;try{editor()}catch(e){fail(e)}}
 async function close(){if(dirty)await flush();stopAu&&stopAu();root.remove();onClose&&onClose()}
 
 /* ---------- editor ---------- */
@@ -134,8 +144,8 @@ function canvas(){const w=$('#cvw'),p=PG();if(!p){w.innerHTML='<div class="empty
  w.innerHTML=`<div id="stg" style="height:${H}px;width:${H*.8}px;--u:${H/100}px"><img src="${esc(src(p))}" alt=""><div id="lay" class="t-${S.tool}${S.prev?' prev':''}"></div></div>`;
  const lay=$('#lay');if(S.prev)return p.hs.forEach(h=>lay.appendChild(mk(h)));
  p.hs.forEach((h,i)=>lay.appendChild(node(h,i)));lay.onpointerdown=lpd;hdr()}
-function node(h,i){const d=document.createElement('div'),bx=KINDS[h.k].box;d.className=`e ed-${h.k}${i==S.sel?' sel':''}`;d.dataset.i=i;d.style.left=h.x+'%';d.style.top=h.y+'%';if(bx){d.style.width=h.w+'%';d.style.height=h.h+'%'}
- d.innerHTML=`<span class="n">${i+1}</span>`+(h.k=='blank'?`<em>${esc(h.a||'?')}</em>`:h.k=='note'?'💬':h.k=='audio'?'🎧':h.k=='video'?'▶':'')+(bx&&i==S.sel?['nw','ne','sw','se'].map(c=>`<i class="hd ${c}" data-h="${c}"></i>`).join(''):'');return d}
+function node(h,i){const d=document.createElement('div'),bx=KINDS[h.k].box;d.className=`e ed-${h.k}${i==S.sel?' sel':''}${h.locked?' lk':''}`;d.dataset.i=i;d.style.left=h.x+'%';d.style.top=h.y+'%';if(bx){d.style.width=h.w+'%';d.style.height=h.h+'%'}
+ d.innerHTML=`<span class="n">${i+1}</span>`+(h.locked?'<b class="lkb">🔒</b>':'')+(h.k=='blank'?`<em>${esc(h.a||'?')}</em>`:h.k=='note'?'💬':h.k=='audio'?'🎧':h.k=='video'?'▶':'')+(bx&&i==S.sel&&!h.locked?['nw','ne','sw','se'].map(c=>`<i class="hd ${c}" data-h="${c}"></i>`).join(''):'');return d}
 
 /* ---------- history ---------- */
 const snap=()=>{const p=PG();if(p){hist.push({p,j:JSON.stringify(p.hs)});if(hist.length>40)hist.shift()}};
@@ -146,7 +156,7 @@ function lpd(e){const R=$('#stg').getBoundingClientRect(),pt=ev=>[(ev.clientX-R.
  const nd=e.target.closest('.e'),hd=e.target.closest('.hd');
  if(S.tool=='select'){if(!nd){S.sel=-1;canvas();panel();return}
   const i=+nd.dataset.i;if(S.sel!=i){S.sel=i;canvas();panel()}
-  const h=HS()[i],o={...h},mode=hd?hd.dataset.h:'move',before=JSON.stringify(HS());let moved=false;
+  const h=HS()[i];if(h.locked)return;const o={...h},mode=hd?hd.dataset.h:'move',before=JSON.stringify(HS());let moved=false;
   const mv=ev=>{const[x,y]=pt(ev),dx=x-x0,dy=y-y0;if(!moved){if(Math.abs(dx)+Math.abs(dy)<.3)return;moved=true;hist.push({p:PG(),j:before})}
    if(mode=='move'){const bx=KINDS[h.k].box;h.x=r2(clamp(o.x+dx,0,bx?100-h.w:100));h.y=r2(clamp(o.y+dy,0,bx?100-h.h:100))}
    else{let X=o.x,Y=o.y,W=o.w,Hh=o.h;if(mode.includes('w')){X=o.x+dx;W=o.w-dx}if(mode.includes('e'))W=o.w+dx;if(mode.includes('n')){Y=o.y+dy;Hh=o.h-dy}if(mode.includes('s'))Hh=o.h+dy;
@@ -164,19 +174,19 @@ function lpd(e){const R=$('#stg').getBoundingClientRect(),pt=ev=>[(ev.clientX-R.
 function keys(e){if(!root.isConnected||!$('#cvw'))return;const t=e.target.tagName;if(/INPUT|TEXTAREA|SELECT/.test(t))return;
  if((e.ctrlKey||e.metaKey)&&e.key=='z'){e.preventDefault();return undo()}
  if(e.key=='Escape'){S.tool='select';S.sel=-1;tbar();canvas();panel();return}
- const h=HS()[S.sel];if(!h||S.prev)return;
+ const h=HS()[S.sel];if(!h||S.prev)return;if(e.key=='l'||e.key=='L'){snap();h.locked?delete h.locked:h.locked=true;canvas();panel();mark();return}
  if(e.key=='Delete'||e.key=='Backspace'){e.preventDefault();return delSel()}
  const st=e.shiftKey?1:.2,d={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
- if(d){e.preventDefault();snap();h.x=r2(clamp(h.x+d[0],0,100));h.y=r2(clamp(h.y+d[1],0,100));canvas();mark()}}
+ if(d&&!h.locked){e.preventDefault();snap();h.x=r2(clamp(h.x+d[0],0,100));h.y=r2(clamp(h.y+d[1],0,100));canvas();mark()}}
 function delSel(){snap();HS().splice(S.sel,1);S.sel=-1;canvas();panel();tree();mark()}
 
 /* ---------- inspector ---------- */
 const mediaList=k=>[...new Set(L.books.flatMap(b=>b.units.flatMap(u=>u.pages.flatMap(p=>p.hs.filter(h=>h.k==k&&h.m&&!/youtu/.test(h.m)).map(h=>h.m)))))];
 function panel(){const a=$('#mR'),p=PG();if(!p){a.innerHTML='';return}const h=HS()[S.sel];
- if(!h){a.innerHTML=`<div class="sec"><div class="sh">Page ${esc(p.label)}</div><label class="f">Page label<input id="plab" value="${esc(p.label)}"></label><div class="row"><button class="gh" id="pmL">◀ Earlier</button><button class="gh" id="pmR">Later ▶</button><button class="gh dg" id="pdel">Delete page</button></div></div>
+ if(!h){a.innerHTML=`<div class="sec"><div class="sh">Page ${esc(p.label)}</div><label class="f">Page label<input id="plab" value="${esc(p.label)}"></label><div class="row"><button class="gh" id="pmL">◀ Earlier</button><button class="gh" id="pmR">Later ▶</button><button class="gh dg" id="pdel">Delete page</button></div><div class="row"><button class="gh" id="lkall">🔒 Lock all buttons</button><button class="gh" id="ulall">🔓 Unlock all</button></div></div>
   <div class="sec"><div class="sh">Buttons on this page (${p.hs.length})</div>${p.hs.map((x,i)=>`<div class="li" data-s="${i}"><b>${i+1}</b><span>${KINDS[x.k].i} ${KINDS[x.k].n}</span><small>${esc(sumry(x))}</small></div>`).join('')||'<p class="mu">Nothing yet. Pick a tool above, then click or drag on the page.</p>'}</div>
   <div class="tip"><b>How it works:</b> choose a tool, then click (or drag) on the page. The new button is selected so you can type its answer here on the right. Use <b>Select</b> to move or fix any button.</div>`;
-  $('#plab').onchange=e=>{p.label=e.target.value.trim()||p.label;full();mark()};
+  $('#lkall').onclick=()=>{snap();p.hs.forEach(x=>x.locked=true);canvas();panel();mark()};$('#ulall').onclick=()=>{snap();p.hs.forEach(x=>delete x.locked);canvas();panel();mark()};$('#plab').onchange=e=>{p.label=e.target.value.trim()||p.label;full();mark()};
   const mvp=d=>{const u=UN(),j=S.p+d;if(j<0||j>=u.pages.length)return;[u.pages[S.p],u.pages[j]]=[u.pages[j],u.pages[S.p]];S.p=j;full();mark()};$('#pmL').onclick=()=>mvp(-1);$('#pmR').onclick=()=>mvp(1);
   $('#pdel').onclick=async()=>{const v=await dlg('Delete page?',[{html:`Delete page <b>${esc(p.label)}</b> and its ${p.hs.length} buttons?`}],'Delete',1);if(v){UN().pages.splice(S.p,1);S.p=0;S.sel=-1;full();mark()}};return}
  const k=h.k,K=KINDS[k];
@@ -185,10 +195,11 @@ function panel(){const a=$('#mR'),p=PG();if(!p){a.innerHTML='';return}const h=HS
   ${k=='blank'?`<label class="f">Word shown on the blank<input id="ia" value="${esc(h.a||'')}" placeholder="e.g. wears"></label>`:''}
   ${k=='note'?`<label class="f">Answer (shown in a bubble)<textarea id="ia" rows="6" placeholder="Type the full answer…">${esc(h.a||'')}</textarea></label><p class="mu">Tip: use &lt;br&gt; for a new line.</p>`:''}
   ${k=='audio'||k=='video'?media(h):''}
+  <div class="f" style="margin-top:12px">Position</div><label class="chk"><input type="checkbox" id="ilk" ${h.locked?'checked':''}> 🔒 Lock position <small>(press L)</small></label><div class="pad"><button class="gh" data-n="-1,0" ${h.locked?'disabled':''}>◀</button><button class="gh" data-n="0,-1" ${h.locked?'disabled':''}>▲</button><button class="gh" data-n="0,1" ${h.locked?'disabled':''}>▼</button><button class="gh" data-n="1,0" ${h.locked?'disabled':''}>▶</button></div><p class="mu">Drag it on the page, fine-tune with the arrows, then lock it so it never moves by accident.</p>
   <div class="row"><button class="gh" id="idup">⎘ Duplicate</button><button class="gh dg" id="idel">🗑 Delete</button></div></div><div class="tip">Drag on the page to move · arrow keys nudge · Delete removes · Ctrl+Z undoes</div>`;
  $('#ik').onchange=e=>{snap();const nk=e.target.value,ob=KINDS[h.k].box,nb=KINDS[nk].box;if(!ob&&nb){h.w=14;h.h=4;h.x=r2(clamp(h.x-7,0,86));h.y=r2(clamp(h.y-2,0,96))}else if(ob&&!nb){h.x=r2(h.x+h.w/2);h.y=r2(h.y+h.h/2);h.w=h.h=0}h.k=nk;if(nk!='audio'&&nk!='video')h.m=null;canvas();panel();mark()};
  const ia=$('#ia');if(ia){ia.onfocus=snap;ia.oninput=()=>{h.a=ia.value;const em=$('.e.sel em');em&&(em.textContent=h.a||'?');mark()}}
- $('#idel').onclick=delSel;$('#idup').onclick=()=>{snap();PG().hs.push({...h,x:r2(Math.min(100,h.x+2)),y:r2(Math.min(100,h.y+2))});S.sel=HS().length-1;canvas();panel();mark()};
+ $('#idel').onclick=delSel;$('#ilk').onchange=e=>{snap();e.target.checked?h.locked=true:delete h.locked;canvas();panel();mark()};$$('.pad button').forEach(b=>b.onclick=()=>{if(h.locked)return;const[dx,dy]=b.dataset.n.split(',').map(Number);snap();h.x=r2(clamp(h.x+dx*.3,0,100));h.y=r2(clamp(h.y+dy*.3,0,100));canvas();mark()});$('#idup').onclick=()=>{snap();{const c={...h,x:r2(Math.min(100,h.x+2)),y:r2(Math.min(100,h.y+2))};delete c.locked;PG().hs.push(c)}S.sel=HS().length-1;canvas();panel();mark()};
  const ex=$('#imex');ex&&(ex.onchange=e=>{if(e.target.value){snap();h.m=e.target.value;panel();canvas();mark()}});
  const yt=$('#iyt');yt&&(yt.onchange=e=>{snap();h.m=e.target.value.trim()||null;panel();mark()});
  const tt=$('#itest');tt&&(tt.onclick=()=>{if(!h.m)return alert('No audio file yet');const x=new Audio(PREV[h.m]||h.m);x.play().catch(()=>alert('Audio file not found yet (it may take 1–2 minutes after upload).'))});

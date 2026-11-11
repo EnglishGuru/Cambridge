@@ -97,5 +97,5 @@ let tx=0;$('#wrap').addEventListener('touchstart',e=>tx=e.touches[0].clientX);$(
 
 /* Manager (loaded on demand) */
 const PREV={};
-$('#gear').onclick=async()=>{try{if(!window.Manager)await new Promise((ok,no)=>{const x=document.createElement('script');x.src='manager.js?v=2';x.onload=ok;x.onerror=no;document.head.appendChild(x)});Manager.open(LIB,()=>{U=null;shelf()})}catch(e){toast('مش قادر أفتح المانجر')}};
+$('#gear').onclick=async()=>{try{if(!window.Manager)await new Promise((ok,no)=>{const x=document.createElement('script');x.src='manager.js?v=3';x.onload=ok;x.onerror=no;document.head.appendChild(x)});Manager.open(LIB,()=>{U=null;shelf()})}catch(e){toast('مش قادر أفتح المانجر')}};
 </script></body></html>
